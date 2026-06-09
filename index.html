@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:sans-serif;background:#111;max-width:480px;margin:0 auto;min-height:100vh;user-select:none}
+.screen{display:none;flex-direction:column;min-height:100vh}
+.screen.active{display:flex}
+
+/* HEADER */
+.hdr{background:#1a1a2e;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hdr h1{font-size:15px;font-weight:500;flex:1}
+.hdr .sub{font-size:11px;opacity:.7;margin-top:1px}
+.back{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 8px 0 0;line-height:1}
+
+/* FORMS */
+.body{flex:1;padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;background:#f0f0f0}
+.card{background:#fff;border-radius:12px;border:.5px solid #ddd;padding:14px}
+.card-title{font-size:12px;color:#999;margin-bottom:10px}
+label{font-size:12px;color:#666;display:block;margin-bottom:3px}
+input,select{width:100%;border:.5px solid #ccc;border-radius:8px;padding:9px 12px;font-size:14px;background:#fff;color:#111;margin-bottom:10px;-webkit-appearance:none}
+input:focus,select:focus{outline:none;border-color:#1a1a2e}
+.btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .1s}
+.btn:active{opacity:.8}
+.btn-p{background:#1a1a2e;color:#fff}
+.btn-s{background:#f0f0f0;color:#333;border:.5px solid #ccc}
+.btn-d{background:#fff;color:#b52020;border:.5px solid #f7c1c1}
+
+/* EQUIPO SELECTOR */
+.eq-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.eq-btn{border:1.5px solid #ddd;border-radius:10px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center}
+.eq-btn.sel{border-color:#1a1a2e;background:#f0f0f5}
+.eq-name{font-size:13px;font-weight:500;color:#111}
+.eq-ref{font-size:10px;color:#888;margin-top:3px;line-height:1.3}
+.eq-btn:nth-child(3){grid-column:1/-1}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stat{background:#f5f5f5;border-radius:8px;padding:10px;text-align:center}
+.stat-n{font-size:20px;font-weight:500;color:#1a1a2e}
+.stat-l{font-size:10px;color:#888;margin-top:2px}
+
+/* REGISTROS */
+.reg-list{display:flex;flex-direction:column;gap:7px;max-height:280px;overflow-y:auto}
+.reg{background:#fff;border:.5px solid #ddd;border-radius:9px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between}
+.reg-c{font-size:13px;font-weight:500;color:#111}
+.reg-d{font-size:11px;color:#999;margin-top:1px}
+.badge{font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.b-B{background:#e8f5e9;color:#1b5e20}
+.b-R{background:#fff9e6;color:#7a5c00}
+.b-M{background:#fff0e6;color:#7a3000}
+.b-I{background:#fce8e8;color:#7a0000}
+.empty{text-align:center;padding:24px;color:#bbb;font-size:13px}
+
+/* ── PANTALLA CÁMARA ── */
+#s-camara{background:#000}
+.cam-wrap{position:relative;width:100%;flex:1;overflow:hidden;background:#000}
+#video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+.cam-top{position:absolute;top:0;left:0;right:0;z-index:10;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent)}
+.cam-eq-label{color:#fff;font-size:13px;font-weight:500;background:rgba(0,0,0,0.4);padding:5px 10px;border-radius:20px}
+.cam-bottom{position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 14px 20px;background:linear-gradient(to top,rgba(0,0,0,0.7),transparent);display:flex;flex-direction:column;gap:8px}
+.cam-hint{color:#fff;font-size:12px;text-align:center;opacity:.85}
+.cam-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cam-btn{padding:11px;border-radius:10px;border:none;font-size:13px;font-weight:500;cursor:pointer}
+.cam-btn-freeze{background:#fff;color:#1a1a2e}
+.cam-btn-cancel{background:rgba(255,255,255,0.15);color:#fff;border:.5px solid rgba(255,255,255,0.3)}
+
+/* Estado congelado */
+.cam-frozen-bar{display:none;position:absolute;top:50px;left:0;right:0;z-index:11;padding:6px 14px;background:rgba(26,26,46,0.85);color:#fff;font-size:12px;text-align:center}
+.cam-frozen-bar.show{display:block}
+
+/* Panel inferior congelado */
+.frozen-panel{display:none;position:absolute;bottom:0;left:0;right:0;z-index:12;background:rgba(10,10,20,0.92);padding:12px 14px 20px}
+.frozen-panel.show{display:block}
+.fp-title{color:#aaa;font-size:11px;margin-bottom:8px}
+.fp-planta-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fp-planta-label{color:#ccc;font-size:12px;flex:1}
+.fp-toggle{display:flex;gap:6px}
+.fp-tog-btn{padding:5px 12px;border-radius:8px;border:.5px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#ccc;font-size:12px;cursor:pointer}
+.fp-tog-btn.active{background:#1a1a2e;border-color:#4a4a8e;color:#fff}
+.fp-obs{width:100%;background:rgba(255,255,255,0.08);border:.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;color:#fff;font-size:12px;resize:none;height:48px;font-family:sans-serif;margin-bottom:8px}
+.fp-obs::placeholder{color:rgba(255,255,255,0.35)}
+.fp-save{width:100%;padding:12px;border-radius:10px;border:none;background:#2a7a3a;color:#fff;font-size:14px;font-weight:500;cursor:pointer}
+.fp-unfreeze{width:100%;padding:9px;border-radius:10px;border:.5px solid rgba(255,255,255,0.2);background:transparent;color:#aaa;font-size:12px;cursor:pointer;margin-top:6px}
+
+/* LEYENDA */
+.leyenda{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.ley{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,0.7)}
+.ley-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* RESULTADO */
+.res-badge{text-align:center;padding:14px 20px;border-radius:10px;font-size:20px;font-weight:500}
+.res-dist{text-align:center;font-size:13px;color:#666;margin-top:6px}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px}
+.res-item span:first-child{color:#999;font-size:11px;display:block;margin-bottom:2px}
+.res-item span:last-child{font-weight:500;color:#111}
+</style>
+</head>
+<body>
+
+<!-- S1: Configurar sesión -->
+<div id="s1" class="screen active">
+  <div class="hdr"><div><h1>Auditoría Puntos Anatómicos</h1><div class="sub">Accuremax · Nueva sesión</div></div></div>
+  <div class="body">
+    <div class="card">
+      <div class="card-title">Datos de la sesión</div>
+      <label>Planta</label><input id="cfg-p" type="text" placeholder="Nombre de la planta">
+      <label>Auditor</label><input id="cfg-a" type="text" placeholder="Nombre del auditor">
+      <label>Fecha</label><input id="cfg-f" type="date">
+    </div>
+    <button class="btn btn-p" onclick="initSesion()">Iniciar sesión</button>
+  </div>
+</div>
+
+<!-- S2: Panel -->
+<div id="s2" class="screen">
+  <div class="hdr"><div><h1 id="p-planta">Planta</h1><div class="sub" id="p-sub">Auditor · Fecha</div></div></div>
+  <div class="body">
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="st-t">0</div><div class="stat-l">Canales</div></div>
+      <div class="stat"><div class="stat-n" id="st-b" style="color:#1b5e20">0</div><div class="stat-l">Buenas</div></div>
+      <div class="stat"><div class="stat-n" id="st-m" style="color:#b52020">0</div><div class="stat-l">Malas+Insuf.</div></div>
+    </div>
+    <button class="btn btn-p" onclick="goAuditar()">+ Auditar canal</button>
+    <div class="card">
+      <div class="card-title">Registros de sesión</div>
+      <div class="reg-list" id="reg-list"><div class="empty">Sin registros aún</div></div>
+    </div>
+    <button class="btn btn-s" onclick="exportar()">⬇ Exportar Excel</button>
+    <button class="btn btn-d" onclick="if(confirm('¿Cerrar sesión?')){stopCam();goScreen('s1')}">Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- S3: Seleccionar equipo -->
+<div id="s3" class="screen">
+  <div class="hdr">
+    <button class="back" onclick="goScreen('s2')">←</button>
+    <div><h1>Seleccionar equipo</h1><div class="sub" id="s3-sub">Canal #1</div></div>
+  </div>
+  <div class="body">
+    <div class="card">
+      <div class="card-title">¿Qué equipo está usando la planta?</div>
+      <div class="eq-grid">
+        <div class="eq-btn" id="eq-HGP4" onclick="selEqYCamara('HGP4')">
+          <div class="eq-name">HGP4</div>
+          <div class="eq-ref">Costillas 2–3<br>4.5 cm línea media</div>
+        </div>
+        <div class="eq-btn" id="eq-HGP7" onclick="selEqYCamara('HGP7')">
+          <div class="eq-name">HGP7</div>
+          <div class="eq-ref">Costillas 2–3<br>5.5 cm línea media</div>
+        </div>
+        <div class="eq-btn" id="eq-INTRO" onclick="selEqYCamara('INTRO')">
+          <div class="eq-name">Introscopio</div>
+          <div class="eq-ref">1ª costilla verdadera<br>6.5 cm línea media</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- S4: Cámara en vivo -->
+<div id="s-camara" class="screen">
+  <div class="cam-wrap" id="cam-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+
+    <div class="cam-top">
+      <button style="background:rgba(255,255,255,0.15);border:.5px solid rgba(255,255,255,0.3);color:#fff;padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer" onclick="goScreen('s3')">← Cambiar equipo</button>
+      <div class="cam-eq-label" id="cam-eq-label">HGP4</div>
+    </div>
+
+    <div class="cam-frozen-bar" id="frozen-bar">📸 Imagen congelada — toca donde está el corte del equipo</div>
+
+    <div class="cam-bottom" id="cam-bottom">
+      <div class="leyenda">
+        <div class="ley"><div class="ley-dot" style="background:#1a9e40"></div>Buena 0–1cm</div>
+        <div class="ley"><div class="ley-dot" style="background:#c8a000"></div>Regular 1–2cm</div>
+        <div class="ley"><div class="ley-dot" style="background:#c45c00"></div>Mala 2–3cm</div>
+        <div class="ley"><div class="ley-dot" style="background:#b52020"></div>Insuf. >3cm</div>
+      </div>
+      <div class="cam-hint" id="cam-hint">Apunta al dorso de la canal y toca <b>Congelar</b></div>
+      <div class="cam-btns">
+        <button class="cam-btn cam-btn-cancel" onclick="goScreen('s3');stopCam()">Cancelar</button>
+        <button class="cam-btn cam-btn-freeze" id="btn-freeze" onclick="congelar()">📸 Congelar</button>
+      </div>
+    </div>
+
+    <div class="frozen-panel" id="frozen-panel">
+      <div class="fp-title">¿Hay punción de la planta?</div>
+      <div class="fp-planta-row">
+        <div class="fp-toggle">
+          <button class="fp-tog-btn" id="tog-no" onclick="setPlanta(false)">No hay</button>
+          <button class="fp-tog-btn" id="tog-si" onclick="setPlanta(true)">Sí, marcar</button>
+        </div>
+      </div>
+      <textarea class="fp-obs" id="fp-obs" placeholder="Observaciones (opcional)..."></textarea>
+      <button class="fp-save" id="fp-save" onclick="guardar()">Guardar registro</button>
+      <button class="fp-unfreeze" onclick="descongelar()">↺ Recongelar imagen</button>
+    </div>
+  </div>
+</div>
+
+<!-- S5: Resultado -->
+<div id="s5" class="screen">
+  <div class="hdr"><div><h1>Resultado</h1><div class="sub" id="r-sub">Canal #1</div></div></div>
+  <div class="body">
+    <div class="card" style="text-align:center">
+      <canvas id="diana-res" width="320" height="320" style="display:block;margin:0 auto;width:200px;height:200px;border-radius:8px"></canvas>
+    </div>
+    <div class="res-badge" id="r-badge">Buena</div>
+    <div class="res-dist" id="r-dist">Distancia: 0.0 cm</div>
+    <div class="card">
+      <div class="res-grid">
+        <div class="res-item"><span>Equipo</span><span id="r-eq">HGP4</span></div>
+        <div class="res-item"><span>Referencia</span><span id="r-ref">C2–3 · 4.5 cm</span></div>
+        <div class="res-item"><span>Punción planta</span><span id="r-plt">No registrada</span></div>
+        <div class="res-item"><span>Hora</span><span id="r-hora">--:--</span></div>
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="goAuditar()">+ Otra canal</button>
+    <button class="btn btn-s" onclick="actualizarPanel();goScreen('s2')">Volver al panel</button>
+  </div>
+</div>
+
+<script>
+const EQ={
+  HGP4:{label:'HGP4',ref:'C2–3 · 4.5 cm'},
+  HGP7:{label:'HGP7',ref:'C2–3 · 5.5 cm'},
+  INTRO:{label:'Introscopio',ref:'C1 verdadera · 6.5 cm'}
+};
+const CAL_C={Buena:'#1a9e40',Regular:'#c8a000',Mala:'#c45c00',Insuficiente:'#b52020'};
+const CAL_BG={Buena:'#e8f5e9',Regular:'#fff9e6',Mala:'#fff0e6',Insuficiente:'#fce8e8'};
+const CAL_FG={Buena:'#1b5e20',Regular:'#7a5c00',Mala:'#7a3000',Insuficiente:'#7a0000'};
+const BADGE={Buena:'b-B',Regular:'b-R',Mala:'b-M',Insuficiente:'b-I'};
+const ESCALA=55; // px/cm en canvas 600px
+const MAX_R=4.0;
+
+let ses={planta:'',auditor:'',fecha:'',regs:[]};
+let canalN=1, curEq=null;
+let stream=null, frozen=false;
+let toque=null, toquePlanta=null, esperandoPlanta=false, hayPlanta=false;
+let overlayW=0, overlayH=0;
+
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function fmtFecha(f){if(!f)return'';const[y,m,d]=f.split('-');return d+'/'+m+'/'+y;}
+function getCal(d){if(d<=1)return'Buena';if(d<=2)return'Regular';if(d<=3)return'Mala';return'Insuficiente';}
+
+function initSesion(){
+  const p=document.getElementById('cfg-p').value.trim();
+  const a=document.getElementById('cfg-a').value.trim();
+  const f=document.getElementById('cfg-f').value;
+  if(!p||!a||!f){alert('Completa todos los campos.');return;}
+  ses={planta:p,auditor:a,fecha:f,regs:[]};
+  document.getElementById('p-planta').textContent=p;
+  document.getElementById('p-sub').textContent=a+' · '+fmtFecha(f);
+  canalN=1; actualizarPanel(); goScreen('s2');
+}
+
+function goAuditar(){
+  curEq=null; toque=null; toquePlanta=null; frozen=false; hayPlanta=false; esperandoPlanta=false;
+  document.querySelectorAll('.eq-btn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('s3-sub').textContent='Canal #'+canalN;
+  goScreen('s3');
+}
+
+function selEqYCamara(eq){
+  curEq=eq;
+  document.getElementById('cam-eq-label').textContent=EQ[eq].label;
+  iniciarCamara();
+}
+
+// ── CÁMARA ────────────────────────────────────────────────
+async function iniciarCamara(){
+  goScreen('s-camara');
+  toque=null; toquePlanta=null; frozen=false; hayPlanta=false; esperandoPlanta=false;
+  document.getElementById('frozen-bar').classList.remove('show');
+  document.getElementById('frozen-panel').classList.remove('show');
+  document.getElementById('cam-bottom').style.display='flex';
+  document.getElementById('fp-obs').value='';
+  document.getElementById('tog-no').classList.remove('active');
+  document.getElementById('tog-si').classList.remove('active');
+
+  try{
+    if(stream) stopCam();
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false
+    });
+    const vid=document.getElementById('video');
+    vid.srcObject=stream;
+    vid.onloadedmetadata=()=>{
+      vid.play();
+      resizeOverlay();
+    };
+  }catch(e){
+    alert('No se pudo acceder a la cámara. Verifica los permisos del navegador.\n\n'+e.message);
+    goScreen('s3');
+  }
+}
+
+function stopCam(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+}
+
+function resizeOverlay(){
+  const wrap=document.getElementById('cam-wrap');
+  const cv=document.getElementById('overlay');
+  overlayW=wrap.offsetWidth;
+  overlayH=wrap.offsetHeight;
+  cv.width=overlayW;
+  cv.height=overlayH;
+  if(frozen) dibujarOverlay();
+  else dibujarCruz();
+}
+
+window.addEventListener('resize',()=>{if(document.getElementById('s-camara').classList.contains('active'))resizeOverlay();});
+
+// Cruz guía en vivo (antes de congelar)
+function dibujarCruz(){
+  const cv=document.getElementById('overlay');
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const cx=cv.width/2, cy=cv.height/2;
+  ctx.strokeStyle='rgba(255,80,80,0.6)'; ctx.lineWidth=1.5; ctx.setLineDash([8,5]);
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,cv.height); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(cv.width,cy); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function congelar(){
+  frozen=true;
+  document.getElementById('frozen-bar').classList.add('show');
+  document.getElementById('cam-bottom').style.display='none';
+  dibujarOverlay();
+}
+
+function descongelar(){
+  frozen=false; toque=null; toquePlanta=null; esperandoPlanta=false; hayPlanta=false;
+  document.getElementById('frozen-bar').classList.remove('show');
+  document.getElementById('frozen-panel').classList.remove('show');
+  document.getElementById('cam-bottom').style.display='flex';
+  document.getElementById('tog-no').classList.remove('active');
+  document.getElementById('tog-si').classList.remove('active');
+  dibujarCruz();
+}
+
+function setPlanta(si){
+  hayPlanta=si;
+  document.getElementById('tog-si').classList.toggle('active',si);
+  document.getElementById('tog-no').classList.toggle('active',!si);
+  if(si){
+    esperandoPlanta=true;
+    document.getElementById('frozen-panel').classList.remove('show');
+    document.getElementById('frozen-bar').classList.add('show');
+    // Cambiar hint
+    const bar=document.getElementById('frozen-bar');
+    bar.textContent='🔵 Toca donde está la PUNCIÓN DE LA PLANTA';
+  } else {
+    esperandoPlanta=false; toquePlanta=null;
+    document.getElementById('frozen-panel').classList.add('show');
+    document.getElementById('frozen-bar').classList.remove('show');
+    dibujarOverlay();
+  }
+}
+
+// ── OVERLAY CON DIANA ─────────────────────────────────────
+function dibujarOverlay(){
+  const cv=document.getElementById('overlay');
+  if(!cv.width||!cv.height) return;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const cx=cv.width/2, cy=cv.height/2;
+
+  // Zonas diana
+  const zonas=[
+    {r:MAX_R*ESCALA,fill:'rgba(180,20,20,0.15)',stroke:'rgba(255,80,80,0.6)'},
+    {r:3*ESCALA,    fill:'rgba(220,100,0,0.15)', stroke:'rgba(255,140,0,0.65)'},
+    {r:2*ESCALA,    fill:'rgba(200,160,0,0.15)', stroke:'rgba(230,200,0,0.65)'},
+    {r:1*ESCALA,    fill:'rgba(30,160,60,0.18)', stroke:'rgba(60,220,100,0.7)'},
+  ];
+  zonas.forEach(z=>{
+    ctx.beginPath(); ctx.arc(cx,cy,z.r,0,Math.PI*2);
+    ctx.fillStyle=z.fill; ctx.fill();
+    ctx.strokeStyle=z.stroke; ctx.lineWidth=2; ctx.stroke();
+  });
+
+  // Cruz roja (línea media + nivel intercostal)
+  ctx.strokeStyle='rgba(255,60,60,0.75)'; ctx.lineWidth=1.5; ctx.setLineDash([8,5]);
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,cv.height); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(cv.width,cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Centro exacto
+  ctx.beginPath(); ctx.arc(cx,cy,5,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,60,60,0.85)'; ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Etiquetas radio
+  ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+  [1,2,3].forEach(r=>{
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.fillText(r+'cm',cx+r*ESCALA+3,cy-4);
+  });
+
+  // Punto planta (azul)
+  if(toquePlanta){
+    ctx.beginPath(); ctx.arc(toquePlanta.x,toquePlanta.y,10,0,Math.PI*2);
+    ctx.fillStyle='rgba(60,100,220,0.85)'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.fillStyle='#fff';
+    ctx.fillText('P',toquePlanta.x,toquePlanta.y+4);
+  }
+
+  // Punto auditor (corte del equipo)
+  if(toque){
+    const d=distCm(toque,{x:cx,y:cy});
+    const cal=getCal(d);
+    ctx.beginPath(); ctx.arc(toque.x,toque.y,11,0,Math.PI*2);
+    ctx.fillStyle=CAL_C[cal]; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.fillStyle='#fff';
+    ctx.fillText('✕',toque.x,toque.y+4);
+    // Línea al centro
+    ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(toque.x,toque.y); ctx.stroke();
+    ctx.setLineDash([]);
+    // Etiqueta distancia
+    const mx=(cx+toque.x)/2+10, my=(cy+toque.y)/2;
+    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(mx-2,my-13,52,16);
+    ctx.fillStyle='#fff'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(d.toFixed(1)+'cm · '+cal,mx+2,my);
+  }
+
+  // Etiqueta equipo
+  ctx.font='12px sans-serif'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(cx-60,cv.height-26,120,18);
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.fillText(EQ[curEq].label+' · '+EQ[curEq].ref,cx,cv.height-12);
+}
+
+// Touch/click sobre overlay
+document.getElementById('overlay').addEventListener('click',manejarToque);
+document.getElementById('overlay').addEventListener('touchend',function(e){
+  e.preventDefault();
+  const t=e.changedTouches[0];
+  manejarToque({clientX:t.clientX,clientY:t.clientY,target:e.target});
+},{passive:false});
+
+function manejarToque(e){
+  if(!frozen) return;
+  const cv=document.getElementById('overlay');
+  const rect=cv.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*(cv.width/rect.width);
+  const y=(e.clientY-rect.top)*(cv.height/rect.height);
+  const cx=cv.width/2, cy=cv.height/2;
+  // Limitar al radio máximo
+  const dx=x-cx, dy=y-cy;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const maxPx=MAX_R*ESCALA;
+  const fx=dist>maxPx?cx+dx/dist*maxPx:x;
+  const fy=dist>maxPx?cy+dy/dist*maxPx:y;
+  const pt={x:Math.round(fx),y:Math.round(fy)};
+
+  if(esperandoPlanta){
+    toquePlanta=pt;
+    esperandoPlanta=false;
+    document.getElementById('frozen-bar').textContent='📸 Imagen congelada — toca donde está el corte del equipo';
+    dibujarOverlay();
+    document.getElementById('frozen-panel').classList.add('show');
+  } else {
+    toque=pt;
+    dibujarOverlay();
+    if(!document.getElementById('frozen-panel').classList.contains('show')){
+      document.getElementById('frozen-panel').classList.add('show');
+    }
+  }
+}
+
+function distCm(a,b){
+  const dx=a.x-b.x,dy=a.y-b.y;
+  return Math.sqrt(dx*dx+dy*dy)/ESCALA;
+}
+
+function guardar(){
+  if(!toque){alert('Toca en la imagen donde está el corte del equipo.');return;}
+  if(hayPlanta&&!toquePlanta){alert('Toca en la imagen donde está la punción de la planta.');return;}
+  const cx=overlayW/2, cy=overlayH/2;
+  const d=parseFloat(distCm(toque,{x:cx,y:cy}).toFixed(2));
+  const cal=getCal(d);
+  let dP=null,cP=null;
+  if(toquePlanta){
+    dP=parseFloat(distCm(toquePlanta,{x:cx,y:cy}).toFixed(2));
+    cP=getCal(dP);
+  }
+  const reg={
+    canal:canalN,fecha:fmtFecha(ses.fecha),
+    hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    planta:ses.planta,auditor:ses.auditor,
+    equipo:EQ[curEq].label,referencia:EQ[curEq].ref,
+    dist_cm:d,calificacion:cal,
+    dist_planta_cm:dP??'',cal_planta:cP??'',
+    obs:document.getElementById('fp-obs').value.trim()
+  };
+  ses.regs.push(reg);
+  canalN++;
+  stopCam();
+  mostrarResultado(reg);
+}
+
+function mostrarResultado(reg){
+  document.getElementById('r-sub').textContent='Canal #'+reg.canal;
+  document.getElementById('r-eq').textContent=reg.equipo;
+  document.getElementById('r-ref').textContent=reg.referencia;
+  document.getElementById('r-hora').textContent=reg.hora;
+  document.getElementById('r-plt').textContent=reg.cal_planta?reg.cal_planta+' ('+reg.dist_planta_cm+'cm)':'No registrada';
+  const b=document.getElementById('r-badge');
+  b.style.background=CAL_BG[reg.calificacion]; b.style.color=CAL_FG[reg.calificacion];
+  b.textContent=reg.calificacion;
+  document.getElementById('r-dist').textContent='Distancia al punto exacto: '+reg.dist_cm+' cm';
+  dibujarDianaRes(reg.dist_cm,reg.calificacion);
+  goScreen('s5');
+}
+
+function dibujarDianaRes(dist,cal){
+  const cv=document.getElementById('diana-res');
+  const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height,cx=W/2,cy=H/2;
+  const ESC=cx/MAX_R;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#f8f8f8'; ctx.fillRect(0,0,W,H);
+  [{r:MAX_R*ESC,f:'rgba(180,20,20,0.10)',s:'rgba(180,20,20,0.5)'},
+   {r:3*ESC,f:'rgba(220,100,0,0.12)',s:'rgba(220,100,0,0.55)'},
+   {r:2*ESC,f:'rgba(200,160,0,0.14)',s:'rgba(200,160,0,0.6)'},
+   {r:1*ESC,f:'rgba(26,158,64,0.18)',s:'rgba(26,158,64,0.7)'}
+  ].forEach(z=>{
+    ctx.beginPath();ctx.arc(cx,cy,z.r,0,Math.PI*2);
+    ctx.fillStyle=z.f;ctx.fill();ctx.strokeStyle=z.s;ctx.lineWidth=1.5;ctx.stroke();
+  });
+  ctx.strokeStyle='rgba(180,0,0,0.35)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);
+  ctx.fillStyle='rgba(180,0,0,0.7)';ctx.fill();
+  const ang=Math.PI*0.75;
+  const dPx=Math.min(dist*ESC,(MAX_R-0.1)*ESC);
+  const px=cx+Math.cos(ang)*dPx,py=cy+Math.sin(ang)*dPx;
+  ctx.beginPath();ctx.arc(px,py,9,0,Math.PI*2);
+  ctx.fillStyle=CAL_C[cal];ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';
+  ctx.fillText('✕',px,py+4);
+  ctx.font='11px sans-serif';ctx.fillStyle='#aaa';ctx.textAlign='center';
+  ctx.fillText(dist+'cm',cx,H-6);
+}
+
+function actualizarPanel(){
+  const n=ses.regs.length;
+  document.getElementById('st-t').textContent=n;
+  document.getElementById('st-b').textContent=ses.regs.filter(r=>r.calificacion==='Buena').length;
+  document.getElementById('st-m').textContent=ses.regs.filter(r=>r.calificacion==='Mala'||r.calificacion==='Insuficiente').length;
+  const list=document.getElementById('reg-list');
+  if(!n){list.innerHTML='<div class="empty">Sin registros aún</div>';return;}
+  list.innerHTML=ses.regs.slice().reverse().map(r=>`
+    <div class="reg">
+      <div>
+        <div class="reg-c">Canal #${r.canal} · ${r.equipo}</div>
+        <div class="reg-d">${r.hora} · ${r.dist_cm}cm · ${r.calificacion}</div>
+      </div>
+      <span class="badge ${BADGE[r.calificacion]}">${r.calificacion}</span>
+    </div>`).join('');
+}
+
+function exportar(){
+  if(!ses.regs.length){alert('No hay registros.');return;}
+  const rows=ses.regs.map(r=>({
+    'Canal':r.canal,'Fecha':r.fecha,'Hora':r.hora,
+    'Planta':r.planta,'Auditor':r.auditor,'Equipo':r.equipo,'Referencia':r.referencia,
+    'Distancia auditor (cm)':r.dist_cm,'Calificación auditor':r.calificacion,
+    'Distancia planta (cm)':r.dist_planta_cm,'Calificación planta':r.cal_planta,
+    'Observaciones':r.obs
+  }));
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[6,10,7,18,16,14,20,20,18,20,18,24].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws,'Auditoría');
+  XLSX.writeFile(wb,`Auditoria_${ses.planta.replace(/\s/g,'_')}_${ses.fecha}.xlsx`);
+}
+
+document.getElementById('cfg-f').value=new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
